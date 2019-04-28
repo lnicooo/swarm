@@ -10,8 +10,8 @@
 
 uint16_t C[3];
 
-static const uint16_t K[3] = {4095, 4158, 4159};
-static const uint16_t W[3] = {1532, 1444, 2242};
+static const uint16_t K[3] = K_const;
+static const uint16_t W[3] = W_const;
 
 void color_sensor_init()
 {

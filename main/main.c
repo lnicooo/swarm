@@ -36,7 +36,7 @@
 #include "mpu9250.h"
 #include "color_sensor.h"
 #include "led.h"
-#include "esp_ibeacon_api.h"
+#include "esp_beacon_api.h"
 #include "motor_driver.h"
 
 static const char* DEMO_TAG = "ROBOT_BEACON_DEV";
@@ -96,24 +96,29 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         switch (scan_result->scan_rst.search_evt) {
         case ESP_GAP_SEARCH_INQ_RES_EVT:
             /* Search for BLE Robot Beacon Packet */
-            {
+            {   
+
                 esp_ble_beacon_t *beacon_data = (esp_ble_beacon_t*)(scan_result->scan_rst.ble_adv);
                 
-                ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
-                esp_log_buffer_hex("IBEACON_DEMO: Device address:", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
+                if(esp_ble_check_beacon(beacon_data)){
+
+                    ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
+                    esp_log_buffer_hex("BEACON_DEMO: Device address:", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
+                    
+
+                    ESP_LOGI(DEMO_TAG, "BEACON_DEMO: Robot ID:%d", beacon_data->robot_id);
+                    
+                    ESP_LOGI(DEMO_TAG, "Position %d",beacon_data->position);
+                    ESP_LOGI(DEMO_TAG, "Status %x",beacon_data->robot_status);
+
+                    ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
+                    ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
+                    //float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
+                    //ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
+
+                    status = beacon_data->robot_status;
+                }
                 
-
-                ESP_LOGI(DEMO_TAG, "IBEACON_DEMO: Robot ID:%d", beacon_data->robot_id);
-                
-                ESP_LOGI(DEMO_TAG, "Position %d",beacon_data->position);
-                ESP_LOGI(DEMO_TAG, "Status %x",beacon_data->robot_status);
-
-                ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
-                ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
-                //float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
-                //ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
-
-                status = beacon_data->robot_status;
             }
             
             break;

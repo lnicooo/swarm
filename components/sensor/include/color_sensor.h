@@ -10,6 +10,9 @@
 #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define NO_OF_SAMPLES   64         //Multisampling
 
+#define K_const {4095, 4158, 4159}
+#define W_const {1532, 1444, 2242}
+
 static esp_adc_cal_characteristics_t *adc_chars;
 static const adc_channel_t channel = ADC_CHANNEL_3;     //GPIO39 if ADC1, GPIO14 if ADC2
 static const adc_atten_t atten = ADC_ATTEN_DB_0;
