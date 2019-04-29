@@ -90,16 +90,15 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         if ((err = param->adv_start_cmpl.status) != ESP_BT_STATUS_SUCCESS) {
             ESP_LOGE(DEMO_TAG, "Adv start failed: %s", esp_err_to_name(err));
         }
-        break;
-    case ESP_GAP_BLE_SCAN_RESULT_EVT: {
-        esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *)param;
-        switch (scan_result->scan_rst.search_evt) {
-        case ESP_GAP_SEARCH_INQ_RES_EVT:
+            break;
+        case ESP_GAP_BLE_SCAN_RESULT_EVT: {
+            esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *)param;
+            switch (scan_result->scan_rst.search_evt) {
+            case ESP_GAP_SEARCH_INQ_RES_EVT:
             /* Search for BLE Robot Beacon Packet */
             {   
 
                 esp_ble_beacon_t *beacon_data = (esp_ble_beacon_t*)(scan_result->scan_rst.ble_adv);
-                
                 if(esp_ble_check_beacon(beacon_data)){
 
                     ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
@@ -107,6 +106,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     
 
                     ESP_LOGI(DEMO_TAG, "BEACON_DEMO: Robot ID:%d", beacon_data->robot_id);
+                    esp_log_buffer_hex("BEACON_DEMO: UUID:", beacon_data->uuid, UUID_LEN );
                     
                     ESP_LOGI(DEMO_TAG, "Position %d",beacon_data->position);
                     ESP_LOGI(DEMO_TAG, "Status %x",beacon_data->robot_status);
@@ -117,8 +117,15 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     //ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
 
                     status = beacon_data->robot_status;
+
+                }
+                else{
+
+                    ESP_LOGE(DEMO_TAG, "Not robot beaon");
+                    
                 }
                 
+
             }
             
             break;
@@ -232,7 +239,7 @@ void app_main()
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     esp_bt_controller_init(&bt_cfg);
-    //esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    esp_bt_controller_enable(ESP_BT_MODE_BLE);
 
     mpu9250_init(MPU9250_ACCE_SENS_2, MPU9250_GYRO_SENS_250);
     color_sensor_init();
@@ -241,7 +248,7 @@ void app_main()
     mcpwm_example_gpio_initialize();
     //esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
 
-    //esp_ble_gap_set_scan_params(&ble_scan_params);
+    esp_ble_gap_set_scan_params(&ble_scan_params);
 
     xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
     xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);

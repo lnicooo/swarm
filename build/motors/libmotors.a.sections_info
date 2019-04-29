@@ -1,0 +1,52 @@
+In archive /home/nicooo/Documents/TCC/Código/swarm/build/motors/libmotors.a:
+
+motor_driver.o:     file format elf32-xtensa-le
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .literal.mcpwm_example_gpio_initialize 0000002c  00000000  00000000  00000034  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  1 .literal.brushed_motor_forward 0000000c  00000000  00000000  00000060  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  2 .literal.brushed_motor_backward 0000000c  00000000  00000000  0000006c  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  3 .literal.brushed_motor_stop 00000008  00000000  00000000  00000078  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  4 .text         00000000  00000000  00000000  00000080  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  5 .data         00000000  00000000  00000000  00000080  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  6 .bss          00000000  00000000  00000000  00000080  2**0
+                  ALLOC
+  7 .rodata.str1.4 00000047  00000000  00000000  00000080  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  8 .text.mcpwm_example_gpio_initialize 0000007e  00000000  00000000  000000c8  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  9 .text.brushed_motor_forward 0000002e  00000000  00000000  00000148  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+ 10 .text.brushed_motor_backward 0000002e  00000000  00000000  00000178  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+ 11 .text.brushed_motor_stop 0000001e  00000000  00000000  000001a8  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+ 12 .debug_frame  00000070  00000000  00000000  000001c8  2**2
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 13 .debug_info   00000522  00000000  00000000  00000238  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 14 .debug_abbrev 00000114  00000000  00000000  0000075a  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 15 .debug_aranges 00000038  00000000  00000000  0000086e  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 16 .debug_ranges 00000028  00000000  00000000  000008a6  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 17 .debug_line   0000023a  00000000  00000000  000008ce  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 18 .debug_str    000004c2  00000000  00000000  00000b08  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 19 .comment      0000003b  00000000  00000000  00000fca  2**0
+                  CONTENTS, READONLY
+ 20 .xtensa.info  00000038  00000000  00000000  00001005  2**0
+                  CONTENTS, READONLY
+ 21 .xt.lit       00000020  00000000  00000000  0000103d  2**0
+                  CONTENTS, RELOC, READONLY
+ 22 .xt.prop      000000c0  00000000  00000000  0000105d  2**0
+                  CONTENTS, RELOC, READONLY

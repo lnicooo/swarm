@@ -1,0 +1,48 @@
+In archive /home/nicooo/Documents/TCC/Código/swarm/build/sensor/libsensor.a:
+
+color_sensor.o:     file format elf32-xtensa-le
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .literal.color_sensor_init 00000018  00000000  00000000  00000034  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  1 .literal.get_color 00000024  00000000  00000000  0000004c  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  2 .text         00000000  00000000  00000000  00000070  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  3 .data         00000000  00000000  00000000  00000070  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  4 .bss          00000000  00000000  00000000  00000070  2**0
+                  ALLOC
+  5 .text.color_sensor_init 0000003f  00000000  00000000  00000070  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  6 .text.get_color 000000a2  00000000  00000000  000000b0  2**2
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  7 .rodata.W     00000006  00000000  00000000  00000154  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  8 .rodata.K     00000006  00000000  00000000  0000015c  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  9 .debug_frame  00000040  00000000  00000000  00000164  2**2
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 10 .debug_info   0000061d  00000000  00000000  000001a4  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 11 .debug_abbrev 0000018f  00000000  00000000  000007c1  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 12 .debug_loc    0000009e  00000000  00000000  00000950  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 13 .debug_aranges 00000028  00000000  00000000  000009ee  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 14 .debug_ranges 00000030  00000000  00000000  00000a16  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 15 .debug_line   00000392  00000000  00000000  00000a46  2**0
+                  CONTENTS, RELOC, READONLY, DEBUGGING
+ 16 .debug_str    00000750  00000000  00000000  00000dd8  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 17 .comment      0000003b  00000000  00000000  00001528  2**0
+                  CONTENTS, READONLY
+ 18 .xtensa.info  00000038  00000000  00000000  00001563  2**0
+                  CONTENTS, READONLY
+ 19 .xt.lit       00000010  00000000  00000000  0000159b  2**0
+                  CONTENTS, RELOC, READONLY
+ 20 .xt.prop      000000b4  00000000  00000000  000015ab  2**0
+                  CONTENTS, RELOC, READONLY

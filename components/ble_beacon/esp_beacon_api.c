@@ -22,7 +22,7 @@ volatile esp_ble_beacon_t robot_adv_beacon = {
 bool esp_ble_check_beacon(esp_ble_beacon_t *rcvd_beacon){
   
   bool check = true;
-  uint8_t esp_uuid[16] = UUID;
+  uint8_t esp_uuid[UUID_LEN] = UUID;
 
   if(memcmp(esp_uuid, rcvd_beacon->uuid, sizeof(esp_uuid))!=0)
     check = false;
