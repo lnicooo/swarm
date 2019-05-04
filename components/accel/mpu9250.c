@@ -158,7 +158,7 @@ void mpu9250_init(MPU9250_Accelerometer_t accel_sensitivity, MPU9250_Gyroscope_t
   if(mpu9250_spi_set_bus(HSPI_HOST) != ESP_OK){
     ESP_LOGE(TAG, "Set Bus error");
   }
-  
+
   if(mpu9250_spi_set_addr(&spi) != ESP_OK){
     ESP_LOGE(TAG, "Set Addr error");
   }
@@ -180,7 +180,7 @@ void mpu9250_init(MPU9250_Accelerometer_t accel_sensitivity, MPU9250_Gyroscope_t
   temp = mpu9250_read_reg(MPU9250_GYRO_CONFIG);
   temp = (temp & 0xE7) | (uint8_t)gyro_sensitivity << 3;
   mpu9250_write_reg(MPU9250_GYRO_CONFIG, temp);
-  
+
   wai=mpu9250_test_connection();
 
   if(wai != 0x71)
@@ -214,40 +214,6 @@ bool mpu9250_read_gyro_accel(imu_sensor_data_t* imu)
   imu->gyro[2]  = (int16_t)(data[12] << 8 | data[13]);
 
   return true;
-}
-
-float mpu9250_collision()
-{
-
-  accel_t pA;
-  accel_t dA;
-  accel_t accel;
-  imu_sensor_data_t imu_d;
-
-  int step=0;
-  float dt;
-  
-  mpu9250_read_gyro_accel(&imu_d);
-
-  accel.x = imu_d.accel[0]/MPU9250_ACCE_SENS_2;
-  accel.y = imu_d.accel[1]/MPU9250_ACCE_SENS_2;
-  accel.z = imu_d.accel[2]/MPU9250_ACCE_SENS_2;
-  
-  if(step>0){
-      dA.x = imu_d.accel[0] - pA.x;
-      dA.y = imu_d.accel[1] - pA.y;
-      dA.z = imu_d.accel[2] - pA.z;
-      step++;
-  }
-
-  pA.x = imu_d.accel[0];
-  pA.y = imu_d.accel[1];
-  pA.z = imu_d.accel[2];
-  
-
-  dt = fabs(dA.x) + fabs(dA.y) + fabs(dA.z);
-
-  return(dt);
 }
 
 

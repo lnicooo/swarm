@@ -44,6 +44,13 @@ static const char* DEMO_TAG = "ROBOT_BEACON_DEV";
 uint32_t status;
 struct MPU_h* mpu;
 
+typedef struct{
+        float x;
+        float y;
+        float z;
+}accel_t;
+
+
 ///Declare static functions
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 
@@ -113,10 +120,10 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                     ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
                     ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
-                    //float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
-                    //ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
+                    float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
+                    ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
 
-                    status = beacon_data->robot_status;
+                    //status = beacon_data->robot_status;
 
                 }
                 else{
@@ -178,12 +185,47 @@ void create_beacon_task()
 
 void move_task()
 {   
+    accel_t pA={};
+    accel_t dA={};
+    accel_t accel={};
+    accel_t gyro ={};
+    imu_sensor_data_t imu_d ={};
+
+    int step=0;
     float dt;
+
+    float yaw=0;
 
     while (true) {
 
-        dt = mpu9250_collision();
+        mpu9250_read_gyro_accel(&imu_d);
+
+        accel.x = imu_d.accel[0]/MPU9250_ACCE_SENS_2;
+        accel.y = imu_d.accel[1]/MPU9250_ACCE_SENS_2;
+
+        gyro.z = imu_d.gyro[2]/MPU9250_GYRO_SENS_500;
         
+        
+        if(step>0){
+
+            dA.x = accel.x - pA.x;
+            dA.y = accel.y - pA.y;
+            
+        }
+
+        pA.x = accel.x;
+        pA.y = accel.y;
+        step = 1;
+
+        yaw += gyro.z * (1.0/250.0);
+
+        dt = fabs(dA.x) + fabs(dA.y);
+        
+        printf("%f\n",yaw);
+        //ESP_LOGI(DEMO_TAG, "Dt: %f\n yaw: %f\n", dt, yaw);
+        //printf("accel: [%+6.2f %+6.2f %+6.2f ] (G)\n", dA.x, dA.y, gyro.z);
+
+        /*
         if(dt>4500){
         
             brushed_motor_backward(MCPWM_UNIT_0, MCPWM_TIMER_0, 30.0);
@@ -199,9 +241,9 @@ void move_task()
             brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_0, 80.0);
             brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_1, 80.0);
         }
+        */
         
-        
-        vTaskDelay(10 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_RATE_MS);
     }
 }
 
@@ -241,17 +283,17 @@ void app_main()
     esp_bt_controller_init(&bt_cfg);
     esp_bt_controller_enable(ESP_BT_MODE_BLE);
 
-    mpu9250_init(MPU9250_ACCE_SENS_2, MPU9250_GYRO_SENS_250);
+    mpu9250_init(MPU9250_ACCE_SENS_2, MPU9250_GYRO_SENS_500);
     color_sensor_init();
     led_init(led_status);
     ble_beacon_init();
     mcpwm_example_gpio_initialize();
     //esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
 
-    esp_ble_gap_set_scan_params(&ble_scan_params);
+    //esp_ble_gap_set_scan_params(&ble_scan_params);
 
-    xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
-    xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
+    //xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
+    //xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
     xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
 }
 

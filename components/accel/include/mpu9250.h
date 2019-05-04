@@ -109,7 +109,6 @@ typedef enum
   MPU9250_Gyroscope_2000s = 0x03    /*!< Range is +- 2000 degrees/s */
 } MPU9250_Gyroscope_t; 
 
-
 typedef struct
 {
   int16_t   accel[3];
@@ -117,12 +116,6 @@ typedef struct
   int16_t   mag[3];
   int16_t   temp;
 } imu_sensor_data_t;
-
-typedef struct{
-        float x;
-        float y;
-        float z;
-}accel_t;
 
 extern void mpu9250_init(
     MPU9250_Accelerometer_t accel_sensitivity,
