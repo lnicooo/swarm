@@ -44,6 +44,8 @@ static const char* DEMO_TAG = "ROBOT_BEACON_DEV";
 uint32_t status;
 struct MPU_h* mpu;
 
+int new_rssi;
+
 typedef struct{
         float x;
         float y;
@@ -122,7 +124,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
                     float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
                     ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
-
+                    new_rssi = scan_result->scan_rst.rssi;
                     //status = beacon_data->robot_status;
 
                 }
@@ -131,8 +133,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     ESP_LOGE(DEMO_TAG, "Not robot beaon");
                     
                 }
-                
-
+            
             }
             
             break;
@@ -188,62 +189,89 @@ void move_task()
     accel_t pA={};
     accel_t dA={};
     accel_t accel={};
-    accel_t gyro ={};
     imu_sensor_data_t imu_d ={};
+
+    int rssi=0;
 
     int step=0;
     float dt;
-
-    float yaw=0;
-
+    float gyro_z;
+    float yaw=0.f;
+    
+    srand(time(NULL));  
+    
     while (true) {
 
         mpu9250_read_gyro_accel(&imu_d);
 
         accel.x = imu_d.accel[0]/MPU9250_ACCE_SENS_2;
         accel.y = imu_d.accel[1]/MPU9250_ACCE_SENS_2;
-
-        gyro.z = imu_d.gyro[2]/MPU9250_GYRO_SENS_500;
-        
         
         if(step>0){
 
             dA.x = accel.x - pA.x;
             dA.y = accel.y - pA.y;
-            
+         
         }
 
         pA.x = accel.x;
         pA.y = accel.y;
         step = 1;
 
-        yaw += gyro.z * (1.0/250.0);
+        dt = 10.f * (fabs(dA.x) + fabs(dA.y));
 
-        dt = fabs(dA.x) + fabs(dA.y);
-        
-        printf("%f\n",yaw);
-        //ESP_LOGI(DEMO_TAG, "Dt: %f\n yaw: %f\n", dt, yaw);
-        //printf("accel: [%+6.2f %+6.2f %+6.2f ] (G)\n", dA.x, dA.y, gyro.z);
 
-        /*
-        if(dt>4500){
-        
-            brushed_motor_backward(MCPWM_UNIT_0, MCPWM_TIMER_0, 30.0);
-            brushed_motor_backward(MCPWM_UNIT_0, MCPWM_TIMER_1, 50.0);
-            vTaskDelay(2000 / portTICK_RATE_MS);
-            brushed_motor_stop(MCPWM_UNIT_0, MCPWM_TIMER_0); 
-            brushed_motor_stop(MCPWM_UNIT_0, MCPWM_TIMER_1);
-            vTaskDelay(500 / portTICK_RATE_MS);
-            dt=0;
+        //collision
+        if(dt>3.0 || new_rssi<rssi){
+
+            float randyaw = (float)(rand() % 358 + (-179));
+
+            while(mpu9250_read_gyro_accel(&imu_d)){
+
+                gyro_z = imu_d.gyro[2]/MPU9250_GYRO_SENS_500;
+
+                yaw += gyro_z * (1.f/1000.f);
+
+                if (yaw > 180.f)
+                    yaw -= 360.f;
+                else if (yaw < -180.f)
+                    yaw += 360.f;
+
+                if(randyaw>0.f){
+
+                    brushed_motor_backward(MCPWM_UNIT_0, MCPWM_TIMER_0, 50.0);
+                    brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_1, 50.0);
+                }
+                else{
+
+                    brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_0, 50.0);
+                    brushed_motor_backward(MCPWM_UNIT_0, MCPWM_TIMER_1, 50.0);
+                }
+
+                if (randyaw>0.f && yaw>=randyaw){
+                    ESP_LOGI(DEMO_TAG, "Exited randyaw>0 yaw:%f randyaw%f", yaw, randyaw);
+                    break;
+                }
+
+                else if(randyaw<0.f && yaw<=randyaw){
+                    ESP_LOGI(DEMO_TAG, "Exited randyaw<0 yaw:%f randyaw%f", yaw, randyaw);
+                    break;
+                }
+
+                vTaskDelay(1 / portTICK_RATE_MS);
+
+            }
+            yaw = 0.f;
+            dt = 0.f;
         }
+
         else{
-            
+
             brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_0, 80.0);
             brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_1, 80.0);
+
         }
-        */
-        
-        vTaskDelay(100 / portTICK_RATE_MS);
+        rssi = new_rssi;
     }
 }
 
@@ -288,12 +316,12 @@ void app_main()
     led_init(led_status);
     ble_beacon_init();
     mcpwm_example_gpio_initialize();
-    //esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
+    esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
 
-    //esp_ble_gap_set_scan_params(&ble_scan_params);
+    esp_ble_gap_set_scan_params(&ble_scan_params);
 
-    //xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
-    //xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
     xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
 }
 

@@ -75,7 +75,6 @@ uint8_t mpu9250_test_connection()
   return mpu9250_read_reg(MPU9250_WHO_AM_I);
 }
 
-/*
 static inline uint8_t ak8963_read_reg(uint8_t reg)
 {
   uint8_t ret;
@@ -143,7 +142,7 @@ static void ak8963_read_all(imu_sensor_data_t* imu)
   imu->mag[1] = (int16_t)(data[3] << 8 | data[2]);
   imu->mag[2] = (int16_t)(data[5] << 8 | data[4]);
 }
-*/
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // public utilities
@@ -193,6 +192,8 @@ void mpu9250_init(MPU9250_Accelerometer_t accel_sensitivity, MPU9250_Gyroscope_t
       ESP_LOGI(TAG,"FOUND'IT %d",wai);
   }
   
+  ak8963_init();
+
 }
 
 
