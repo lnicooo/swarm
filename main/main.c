@@ -66,8 +66,8 @@ static esp_ble_scan_params_t ble_scan_params = {
 };
 
 static esp_ble_adv_params_t ble_adv_params = {
-    .adv_int_min        = 0x20,
-    .adv_int_max        = 0x40,
+    .adv_int_min        = 0x0800,
+    .adv_int_max        = 0x4000,
     .adv_type           = ADV_TYPE_NONCONN_IND,
     .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
     .channel_map        = ADV_CHNL_ALL,
@@ -109,7 +109,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                 esp_ble_beacon_t *beacon_data = (esp_ble_beacon_t*)(scan_result->scan_rst.ble_adv);
                 if(esp_ble_check_beacon(beacon_data)){
-
+                    
                     ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
                     esp_log_buffer_hex("BEACON_DEMO: Device address:", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
                     
@@ -118,21 +118,30 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     esp_log_buffer_hex("BEACON_DEMO: UUID:", beacon_data->uuid, UUID_LEN );
                     
                     ESP_LOGI(DEMO_TAG, "Position %d",beacon_data->position);
+                   
                     ESP_LOGI(DEMO_TAG, "Status %x",beacon_data->robot_status);
-
+                    
                     ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
                     ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
                     float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
                     ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
+                    
+                    status = beacon_data->robot_status;
+                    
+                    //ESP_LOGI(DEMO_TAG,"%d dbm", scan_result->scan_rst.rssi);
+                    
+                
                     new_rssi = scan_result->scan_rst.rssi;
-                    //status = beacon_data->robot_status;
-
+                    ESP_LOGI(DEMO_TAG, "%d\t",new_rssi);
+                    ESP_LOGI(DEMO_TAG, "%f\n",(-302.048 +(-5.531*(float)new_rssi)));
                 }
+                
                 else{
 
-                    ESP_LOGE(DEMO_TAG, "Not robot beaon");
+                    //ESP_LOGE(DEMO_TAG, "Not robot beaon");
                     
                 }
+                
             
             }
             
@@ -157,7 +166,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             ESP_LOGE(DEMO_TAG, "Adv stop failed: %s", esp_err_to_name(err));
         }
         else {
-            ESP_LOGI(DEMO_TAG, "Stop adv successfully");
+            //ESP_LOGI(DEMO_TAG, "Stop adv successfully");
         }
         break;
 
@@ -169,16 +178,17 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 void create_beacon_task()
 {
     while(1){
+
         esp_ble_gap_stop_advertising();
         uint32_t color = get_color();
         //ESP_LOGI(DEMO_TAG, "Read color:%d",color);  
-        //esp_err_t status = esp_ble_config_beacon_data (&robot_adv_beacon, 0, color);
+        esp_err_t status = esp_ble_config_beacon_data (&robot_adv_beacon, 0, color);
         robot_adv_beacon.robot_status = color;
         esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
         
-
         esp_ble_gap_start_advertising(&ble_adv_params);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        
+        vTaskDelay(500/portTICK_RATE_MS);
     
     }
     
@@ -197,7 +207,8 @@ void move_task()
     float dt;
     float gyro_z;
     float yaw=0.f;
-    
+    float distance;
+
     srand(time(NULL));  
     
     while (true) {
@@ -220,9 +231,10 @@ void move_task()
 
         dt = 10.f * (fabs(dA.x) + fabs(dA.y));
 
+        distance = -302.048 -5.531*new_rssi;
 
         //collision
-        if(dt>3.0 || new_rssi<rssi){
+        if(dt>3){
 
             float randyaw = (float)(rand() % 358 + (-179));
 
@@ -263,6 +275,7 @@ void move_task()
             }
             yaw = 0.f;
             dt = 0.f;
+            rssi = new_rssi;
         }
 
         else{
@@ -271,7 +284,7 @@ void move_task()
             brushed_motor_forward(MCPWM_UNIT_0, MCPWM_TIMER_1, 80.0);
 
         }
-        rssi = new_rssi;
+        
     }
 }
 
@@ -316,12 +329,12 @@ void app_main()
     led_init(led_status);
     ble_beacon_init();
     mcpwm_example_gpio_initialize();
-    esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
+    //esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
 
     esp_ble_gap_set_scan_params(&ble_scan_params);
 
     xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
     xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
-    xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
+   // xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
 }
 
