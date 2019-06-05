@@ -28,6 +28,7 @@
 #include "driver/spi_master.h"
 #include "freertos/portmacro.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 #include "esp_event_loop.h"
 #include "esp_system.h"
@@ -41,17 +42,26 @@
 
 static const char* DEMO_TAG = "ROBOT_BEACON_DEV";
 
-uint32_t status;
 struct MPU_h* mpu;
 
-int new_rssi;
-
-typedef struct{
+typedef struct
+{
         float x;
         float y;
         float z;
 }accel_t;
 
+typedef struct 
+{
+    int id;
+    uint32_t status;
+    int rssi;
+}robot_status_t;
+    
+QueueHandle_t xStatusQueue;
+SemaphoreHandle_t xSemaphore = NULL;
+
+volatile robot_status_t my_status;
 
 ///Declare static functions
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -109,7 +119,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                 esp_ble_beacon_t *beacon_data = (esp_ble_beacon_t*)(scan_result->scan_rst.ble_adv);
                 if(esp_ble_check_beacon(beacon_data)){
-                    
+                    /*
                     ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
                     esp_log_buffer_hex("BEACON_DEMO: Device address:", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
                     
@@ -118,7 +128,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     esp_log_buffer_hex("BEACON_DEMO: UUID:", beacon_data->uuid, UUID_LEN );
                     
                     ESP_LOGI(DEMO_TAG, "Position %d",beacon_data->position);
-                   
+                   r
                     ESP_LOGI(DEMO_TAG, "Status %x",beacon_data->robot_status);
                     
                     ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
@@ -128,12 +138,19 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     
                     status = beacon_data->robot_status;
                     
-                    //ESP_LOGI(DEMO_TAG,"%d dbm", scan_result->scan_rst.rssi);
-                    
-                
                     new_rssi = scan_result->scan_rst.rssi;
                     ESP_LOGI(DEMO_TAG, "%d\t",new_rssi);
                     ESP_LOGI(DEMO_TAG, "%f\n",(-302.048 +(-5.531*(float)new_rssi)));
+                    */
+                    robot_status_t pkt = {
+                        .id = beacon_data->robot_id,
+                        .status = beacon_data->robot_status,
+                        .rssi = scan_result->scan_rst.rssi,
+                    };
+                   
+
+                    xQueueSendToBack(xStatusQueue, &pkt, 0);
+
                 }
                 
                 else{
@@ -141,8 +158,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     //ESP_LOGE(DEMO_TAG, "Not robot beaon");
                     
                 }
-                
-            
+
             }
             
             break;
@@ -175,15 +191,66 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     }
 }
 
-void create_beacon_task()
+void update_status_task()
 {
+
+    robot_status_t *pkt;
+    float distance;
+    int i=0;
+    int mean=0;
+
+    while(1){
+
+        if( xStatusQueue != 0 )
+        {
+            if( xQueueReceive( xStatusQueue, &pkt, 10 ))
+            {       
+                distance = -302.048 -5.531*pkt->rssi;
+
+                mean += pkt->status/(1.f/distance);
+
+                i++;
+                
+            }
+        }
+
+        if(i>=4 && xSemaphore != NULL){
+            //mutex
+            
+            if( xSemaphoreTake( xSemaphore, 10 ) == pdTRUE )
+            {
+                my_status.status = mean/4;
+                xSemaphoreGive( xSemaphore );
+            }
+            
+            i=0;
+        }
+    } 
+}
+void create_beacon_task()
+{   
+    uint32_t status=0;
     while(1){
 
         esp_ble_gap_stop_advertising();
-        uint32_t color = get_color();
+        //uint32_t color = get_color();
         //ESP_LOGI(DEMO_TAG, "Read color:%d",color);  
-        esp_err_t status = esp_ble_config_beacon_data (&robot_adv_beacon, 0, color);
-        robot_adv_beacon.robot_status = color;
+
+        if(xSemaphore != NULL){
+            //mutex
+            
+            if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+            {
+                status = my_status.status;
+                xSemaphoreGive( xSemaphore );
+            }
+            
+        }
+
+        esp_ble_config_beacon_data (&robot_adv_beacon, 0, status);
+
+        robot_adv_beacon.robot_status = status;
+
         esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
         
         esp_ble_gap_start_advertising(&ble_adv_params);
@@ -200,14 +267,12 @@ void move_task()
     accel_t dA={};
     accel_t accel={};
     imu_sensor_data_t imu_d ={};
-
-    int rssi=0;
+    uint32_t new_status=0, old_status=0;
 
     int step=0;
     float dt;
     float gyro_z;
     float yaw=0.f;
-    float distance;
 
     srand(time(NULL));  
     
@@ -231,10 +296,19 @@ void move_task()
 
         dt = 10.f * (fabs(dA.x) + fabs(dA.y));
 
-        distance = -302.048 -5.531*new_rssi;
+        if(xSemaphore != NULL){
+            //mutex
+            
+            if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+            {
+                new_status = my_status.status;
+                xSemaphoreGive( xSemaphore );
+            }
+            
+        }
 
-        //collision
-        if(dt>3){
+        //collision or better status
+        if(dt>3 && old_status > new_status){
 
             float randyaw = (float)(rand() % 358 + (-179));
 
@@ -275,7 +349,6 @@ void move_task()
             }
             yaw = 0.f;
             dt = 0.f;
-            rssi = new_rssi;
         }
 
         else{
@@ -285,6 +358,8 @@ void move_task()
 
         }
         
+        old_status = new_status;
+
     }
 }
 
@@ -329,12 +404,17 @@ void app_main()
     led_init(led_status);
     ble_beacon_init();
     mcpwm_example_gpio_initialize();
-    //esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
+    esp_ble_gap_config_adv_data_raw((uint8_t*)&robot_adv_beacon, sizeof(robot_adv_beacon));
 
     esp_ble_gap_set_scan_params(&ble_scan_params);
 
+    xStatusQueue = xQueueCreate( 10, sizeof( struct my_status * ) );
+    vSemaphoreCreateBinary( xSemaphore );
+
     xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
     xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
-   // xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&update_status_task, "update_status_task", 2048, NULL, 5, NULL);
+
 }
 
