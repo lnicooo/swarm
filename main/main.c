@@ -59,9 +59,9 @@ typedef struct
 }robot_status_t;
     
 QueueHandle_t xStatusQueue;
-SemaphoreHandle_t xSemaphore = NULL;
+SemaphoreHandle_t xMutex = NULL;
 
-volatile robot_status_t my_status;
+static robot_status_t my_status;
 
 ///Declare static functions
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -119,20 +119,23 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                 esp_ble_beacon_t *beacon_data = (esp_ble_beacon_t*)(scan_result->scan_rst.ble_adv);
                 if(esp_ble_check_beacon(beacon_data)){
+                    
+                    //printf("%x,%d\n",beacon_data->robot_id,beacon_data->robot_status);
                     /*
                     ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
-                    esp_log_buffer_hex("BEACON_DEMO: Device address:", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
+                    esp_log_buffer_hex("", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
                     
 
                     ESP_LOGI(DEMO_TAG, "BEACON_DEMO: Robot ID:%d", beacon_data->robot_id);
                     esp_log_buffer_hex("BEACON_DEMO: UUID:", beacon_data->uuid, UUID_LEN );
                     
                     ESP_LOGI(DEMO_TAG, "Position %d",beacon_data->position);
-                   r
+                   
                     ESP_LOGI(DEMO_TAG, "Status %x",beacon_data->robot_status);
                     
                     ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
                     ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
+                    
                     float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
                     ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
                     
@@ -142,21 +145,22 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     ESP_LOGI(DEMO_TAG, "%d\t",new_rssi);
                     ESP_LOGI(DEMO_TAG, "%f\n",(-302.048 +(-5.531*(float)new_rssi)));
                     */
-                    robot_status_t pkt = {
+
+                    robot_status_t pkt_send = {
                         .id = beacon_data->robot_id,
                         .status = beacon_data->robot_status,
                         .rssi = scan_result->scan_rst.rssi,
-                    };
-                   
-
-                    xQueueSendToBack(xStatusQueue, &pkt, 0);
-
+                        
+                    };  
+                    
+                    xQueueSend(xStatusQueue, ( void * ) &pkt_send,  ( TickType_t ) 0);
+                    
                 }
                 
                 else{
 
                     //ESP_LOGE(DEMO_TAG, "Not robot beaon");
-                    
+
                 }
 
             }
@@ -194,59 +198,69 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 void update_status_task()
 {
 
-    robot_status_t *pkt;
+    robot_status_t pkt;
     float distance;
     int i=0;
-    int mean=0;
+    float mean=0.f;
 
     while(1){
 
         if( xStatusQueue != 0 )
         {
-            if( xQueueReceive( xStatusQueue, &pkt, 10 ))
+            if( xQueueGenericReceive( xStatusQueue, &pkt, 10 , false))
             {       
-                distance = -302.048 -5.531*pkt->rssi;
 
-                mean += pkt->status/(1.f/distance);
+                distance = -302.048 -5.531*(pkt.rssi);
+
+                mean += ((float)pkt.status)/(1.f/distance);
 
                 i++;
                 
+                /*
+                printf("i:%d,mean:%f, dist:%f\n",i, mean,distance);
+                printf("rssi: %d\n",pkt.rssi);
+                printf("pkt %d distance %f\n",pkt.id, distance);
+                //printf("id:%x status:%d rssi:%d\n",pkt.id, pkt.status, pkt.rssi);
+                */
             }
         }
-
-        if(i>=4 && xSemaphore != NULL){
+        
+        if(i>=4 && xMutex != NULL){
             //mutex
             
-            if( xSemaphoreTake( xSemaphore, 10 ) == pdTRUE )
+            if( xSemaphoreTake( xMutex, 10 ) == pdTRUE )
             {
-                my_status.status = mean/4;
-                xSemaphoreGive( xSemaphore );
+                my_status.status = mean/4.f;
+                xSemaphoreGive( xMutex );
             }
             
             i=0;
         }
+        
     } 
 }
 void create_beacon_task()
 {   
-    uint32_t status=0;
+    uint32_t status=1;
+
     while(1){
 
         esp_ble_gap_stop_advertising();
         //uint32_t color = get_color();
         //ESP_LOGI(DEMO_TAG, "Read color:%d",color);  
-
-        if(xSemaphore != NULL){
+        
+        if(xMutex != NULL){
             //mutex
             
-            if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+            if( xSemaphoreTake( xMutex, ( TickType_t ) 10 ) == pdTRUE )
             {
                 status = my_status.status;
-                xSemaphoreGive( xSemaphore );
+                printf("%d\n", my_status.status);
+                xSemaphoreGive( xMutex );
             }
             
         }
-
+        
         esp_ble_config_beacon_data (&robot_adv_beacon, 0, status);
 
         robot_adv_beacon.robot_status = status;
@@ -295,18 +309,18 @@ void move_task()
         step = 1;
 
         dt = 10.f * (fabs(dA.x) + fabs(dA.y));
-
-        if(xSemaphore != NULL){
+        
+        if(xMutex != NULL){
             //mutex
             
-            if( xSemaphoreTake( xSemaphore, ( TickType_t ) 10 ) == pdTRUE )
+            if( xSemaphoreTake( xMutex, ( TickType_t ) 10 ) == pdTRUE )
             {
                 new_status = my_status.status;
-                xSemaphoreGive( xSemaphore );
+                xSemaphoreGive( xMutex );
             }
             
         }
-
+        
         //collision or better status
         if(dt>3 && old_status > new_status){
 
@@ -408,13 +422,13 @@ void app_main()
 
     esp_ble_gap_set_scan_params(&ble_scan_params);
 
-    xStatusQueue = xQueueCreate( 10, sizeof( struct my_status * ) );
-    vSemaphoreCreateBinary( xSemaphore );
-
+    xStatusQueue = xQueueCreate( 10, sizeof( robot_status_t ) );
+    xMutex = xSemaphoreCreateMutex();
+    
     xTaskCreate(&create_beacon_task, "create_beacon_task", 2048, NULL, 5, NULL);
     xTaskCreate(&status_color_task, "status_color_task", 2048, NULL, 5, NULL);
     xTaskCreate(&move_task, "move_task", 2048, NULL, 5, NULL);
     xTaskCreate(&update_status_task, "update_status_task", 2048, NULL, 5, NULL);
-
+    
 }
 
