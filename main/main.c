@@ -120,8 +120,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 esp_ble_beacon_t *beacon_data = (esp_ble_beacon_t*)(scan_result->scan_rst.ble_adv);
                 if(esp_ble_check_beacon(beacon_data)){
                     
+                    
                     //printf("%x,%d\n",beacon_data->robot_id,beacon_data->robot_status);
-                    /*
+                    
                     ESP_LOGI(DEMO_TAG, "----------Robot Beacon Found----------");
                     esp_log_buffer_hex("", scan_result->scan_rst.bda, ESP_BD_ADDR_LEN );
                     
@@ -135,18 +136,18 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     
                     ESP_LOGI(DEMO_TAG, "Measured power (RSSI at a 1m distance):%d dbm", beacon_data->measured_power);
                     ESP_LOGI(DEMO_TAG, "RSSI of packet:%d dbm", scan_result->scan_rst.rssi);
-                    
+                    /*
                     float distance = pow(10,((-59-(scan_result->scan_rst.rssi))/20));
                     ESP_LOGI(DEMO_TAG, "distance:%0.2f m",distance);
                     
                     status = beacon_data->robot_status;
                     
                     new_rssi = scan_result->scan_rst.rssi;
+
                     ESP_LOGI(DEMO_TAG, "%d\t",new_rssi);
                     ESP_LOGI(DEMO_TAG, "%f\n",(-302.048 +(-5.531*(float)new_rssi)));
                     */
-
-                    robot_status_t pkt_send = {
+                    robot_status_t pkt_send = { 
                         .id = beacon_data->robot_id,
                         .status = beacon_data->robot_status,
                         .rssi = scan_result->scan_rst.rssi,
@@ -212,12 +213,13 @@ void update_status_task()
 
                 distance = -302.048 -5.531*(pkt.rssi);
 
-                mean += ((float)pkt.status)/(1.f/distance);
+                mean += (1.f+(float)pkt.status)/distance;
 
                 i++;
-                
+
                 /*
-                printf("i:%d,mean:%f, dist:%f\n",i, mean,distance);
+                printf("-------\ni:%d,mean:%f, dist:%f\n,calc:%f\n-------\n",i, mean,distance,(1+(float)pkt.status)/(1.f/distance));
+                printf("i:%d,mean:%f, dist:%f\n, %f",i, mean,distance,(1+(float)pkt.status)/(1.f/distance));     
                 printf("rssi: %d\n",pkt.rssi);
                 printf("pkt %d distance %f\n",pkt.id, distance);
                 //printf("id:%x status:%d rssi:%d\n",pkt.id, pkt.status, pkt.rssi);
@@ -231,9 +233,11 @@ void update_status_task()
             if( xSemaphoreTake( xMutex, 10 ) == pdTRUE )
             {
                 my_status.status = mean/4.f;
+                printf("%d\n",my_status.status);
+                printf("mean %f\n",mean/4.f);
                 xSemaphoreGive( xMutex );
             }
-            
+            mean=0;
             i=0;
         }
         
@@ -241,7 +245,7 @@ void update_status_task()
 }
 void create_beacon_task()
 {   
-    uint32_t status=1;
+    uint32_t status=0;
 
     while(1){
 
@@ -255,7 +259,7 @@ void create_beacon_task()
             if( xSemaphoreTake( xMutex, ( TickType_t ) 10 ) == pdTRUE )
             {
                 status = my_status.status;
-                printf("%d\n", my_status.status);
+                printf("%d\n", status);
                 xSemaphoreGive( xMutex );
             }
             
@@ -363,6 +367,7 @@ void move_task()
             }
             yaw = 0.f;
             dt = 0.f;
+            old_status = new_status;
         }
 
         else{
@@ -372,7 +377,7 @@ void move_task()
 
         }
         
-        old_status = new_status;
+        
 
     }
 }
